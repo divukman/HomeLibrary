@@ -1,0 +1,16 @@
+# Home Library Configuration Template
+# Copy this file to config.properties and update with your settings
+
+# Amazon Product Advertising API Configuration
+# Sign up at: https://affiliate-program.amazon.com/assoc_credentials/home
+amazon.api.access.key=YOUR_ACCESS_KEY_HERE
+amazon.api.secret.key=YOUR_SECRET_KEY_HERE
+amazon.api.associate.tag=YOUR_ASSOCIATE_TAG_HERE
+amazon.api.region=us-east-1
+
+# Available regions:
+# us-east-1, us-west-2, eu-west-1, ap-northeast-1, etc.
+
+# Application Settings
+covers.directory=covers
+database.file=homelibrary.db
