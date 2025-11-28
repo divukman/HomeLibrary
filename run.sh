@@ -1,15 +1,6 @@
 #!/bin/bash
 
-# Home Library Manager - Run Script
-
-echo "Starting Home Library Manager..."
-
-# Check if Maven is installed
-if ! command -v mvn &> /dev/null; then
-    echo "Error: Maven is not installed or not in PATH"
-    echo "Please install Maven from https://maven.apache.org/"
-    exit 1
-fi
+# Home Library Application Launcher for Linux/Mac
 
 # Check if Java is installed
 if ! command -v java &> /dev/null; then
@@ -26,12 +17,36 @@ if [ "$JAVA_VERSION" -lt 17 ]; then
     exit 1
 fi
 
-# Build if necessary
-if [ ! -f "target/home-library-1.0.0.jar" ]; then
-    echo "Building application..."
+echo "Using Java version: $(java -version 2>&1 | head -n 1)"
+
+# Set paths
+JAR_FILE="target/home-library-1.0.0.jar"
+LIB_DIR="target/lib"
+
+# Check if JAR exists, if not try to build
+if [ ! -f "$JAR_FILE" ]; then
+    echo "JAR file not found. Attempting to build..."
+    if ! command -v mvn &> /dev/null; then
+        echo "Maven not found. Please run: mvn clean package"
+        exit 1
+    fi
     mvn clean package -DskipTests
+    if [ $? -ne 0 ]; then
+        echo "Build failed!"
+        exit 1
+    fi
 fi
 
+# Check if lib directory exists
+if [ ! -d "$LIB_DIR" ]; then
+    echo "Dependencies not found: $LIB_DIR"
+    echo "Please run: mvn clean package"
+    exit 1
+fi
+
+# Build module path for JavaFX
+MODULE_PATH="$LIB_DIR/javafx-controls-21.0.1.jar:$LIB_DIR/javafx-graphics-21.0.1.jar:$LIB_DIR/javafx-base-21.0.1.jar:$LIB_DIR/javafx-fxml-21.0.1.jar"
+
 # Run the application
-echo "Launching application..."
-mvn javafx:run
+echo "Starting Home Library Application..."
+java --module-path "$MODULE_PATH" --add-modules javafx.controls,javafx.fxml -jar "$JAR_FILE"

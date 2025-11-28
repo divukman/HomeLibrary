@@ -68,19 +68,43 @@ This will:
 
 ### 3. Run the Application
 
-**Option A: Using Maven (Development)**
+**Option A: Using Launcher Scripts (Recommended)**
+
+For Linux/Mac:
+```bash
+./run.sh
+```
+
+For Windows:
+```batch
+run.bat
+```
+
+The launcher scripts will:
+- Check Java installation and version
+- Automatically build if needed
+- Configure JavaFX module path
+- Launch the application
+
+**Option B: Using Maven (Development)**
 ```bash
 mvn javafx:run
 ```
 
-**Option B: Using Java (Production)**
+**Option C: Using Java Directly**
+
+Linux/Mac:
 ```bash
-java -jar target/home-library-1.0.0.jar
+java --module-path target/lib/javafx-controls-21.0.1.jar:target/lib/javafx-graphics-21.0.1.jar:target/lib/javafx-base-21.0.1.jar:target/lib/javafx-fxml-21.0.1.jar \
+     --add-modules javafx.controls,javafx.fxml \
+     -jar target/home-library-1.0.0.jar
 ```
 
-**Option C: Run Main Class Directly**
-```bash
-mvn clean javafx:run
+Windows:
+```batch
+java --module-path target\lib\javafx-controls-21.0.1.jar;target\lib\javafx-graphics-21.0.1.jar;target\lib\javafx-base-21.0.1.jar;target\lib\javafx-fxml-21.0.1.jar ^
+     --add-modules javafx.controls,javafx.fxml ^
+     -jar target\home-library-1.0.0.jar
 ```
 
 ## First Run
@@ -272,6 +296,56 @@ Application logs are written to:
 
 Log levels can be adjusted in `src/main/resources/logback.xml`.
 
+## Distribution & Sharing
+
+### Sharing the Application
+
+When sharing the application with others who don't have Maven installed, provide:
+
+1. The entire `target/` directory (contains JAR + dependencies)
+2. The `run.sh` (Linux/Mac) and/or `run.bat` (Windows) launcher scripts
+3. This README file
+
+Users only need Java 17+ installed. They can run the application using the launcher scripts.
+
+### Creating a Release Package
+
+**Easy Method - Automated Script:**
+
+```bash
+./create-release.sh
+```
+
+This creates:
+- `release/home-library-v1.0.0.zip` (for Windows users)
+- `release/home-library-v1.0.0.tar.gz` (for Linux/Mac users)
+
+Both archives contain:
+- The runnable JAR
+- All dependencies
+- Launcher scripts (run.sh and run.bat)
+- README and installation instructions
+
+**Manual Method:**
+
+```bash
+# Build the application
+mvn clean package
+
+# Create a distribution archive
+cd target
+zip -r ../home-library-v1.0.0.zip home-library-1.0.0.jar lib/
+cd ..
+
+# Add launcher scripts to the archive
+zip home-library-v1.0.0.zip run.sh run.bat README.md
+```
+
+**Users can then:**
+1. Download and extract the archive
+2. Run `./run.sh` (Linux/Mac) or `run.bat` (Windows)
+3. No Maven required - only Java 17+!
+
 ## Troubleshooting
 
 ### JavaFX Not Found
@@ -279,7 +353,10 @@ Log levels can be adjusted in `src/main/resources/logback.xml`.
 If you see "Error: JavaFX runtime components are missing":
 
 ```bash
-# Use Maven to run
+# Use the launcher script
+./run.sh  # or run.bat on Windows
+
+# Or use Maven to run
 mvn javafx:run
 ```
 

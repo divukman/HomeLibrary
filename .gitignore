@@ -9,6 +9,9 @@ dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
 
+# Release artifacts
+release/
+
 # IntelliJ IDEA
 .idea/
 *.iml
