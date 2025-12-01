@@ -3,6 +3,7 @@ package com.homelibrary.ui;
 import com.homelibrary.model.Book;
 import com.homelibrary.model.Category;
 import com.homelibrary.service.BookService;
+import com.homelibrary.service.ConfigService;
 import com.homelibrary.service.ExportImportService;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -32,6 +33,7 @@ public class BookListView {
 
     private final MainApp mainApp;
     private final BookService bookService;
+    private final ConfigService configService;
     private final BorderPane view;
     private final TableView<Book> bookTable;
     private final ObservableList<Book> bookData;
@@ -59,6 +61,7 @@ public class BookListView {
     public BookListView(MainApp mainApp) {
         this.mainApp = mainApp;
         this.bookService = new BookService();
+        this.configService = ConfigService.getInstance();
         this.bookData = FXCollections.observableArrayList();
         this.bookTable = new TableView<>();
         this.coverImageView = new ImageView();
@@ -67,6 +70,7 @@ public class BookListView {
         this.view = createView();
         loadBooks();
         updateStats();
+        loadColumnVisibilityState();
     }
 
     /**
@@ -144,6 +148,13 @@ public class BookListView {
             filterByCategory(selected);
         });
 
+        // Clear category filter button
+        Button clearCategoryButton = new Button("Clear");
+        clearCategoryButton.setOnAction(e -> {
+            categoryFilter.setValue(null);
+            filterByCategory(null);
+        });
+
         // Filter by read status
         ComboBox<String> readStatusFilter = new ComboBox<>();
         readStatusFilter.getItems().addAll("All Books", "Read", "Unread");
@@ -184,6 +195,7 @@ public class BookListView {
         secondRow.getChildren().addAll(
             new Label("Category:"),
             categoryFilter,
+            clearCategoryButton,
             new Label("Read:"),
             readStatusFilter,
             new Label("Status:"),
@@ -429,14 +441,24 @@ public class BookListView {
             Category currentSelection = categoryFilter.getValue();
             List<Category> categories = bookService.getAllCategories();
             categoryFilter.getItems().clear();
+
+            // Add empty "All Categories" option at the beginning
+            Category allCategories = new Category(null, "All Categories");
+            categoryFilter.getItems().add(allCategories);
+
             categoryFilter.getItems().addAll(categories);
 
             // Restore selection if it still exists
             if (currentSelection != null) {
-                for (Category cat : categories) {
-                    if (cat.getId().equals(currentSelection.getId())) {
-                        categoryFilter.setValue(cat);
-                        break;
+                if (currentSelection.getId() == null) {
+                    // Select "All Categories" option
+                    categoryFilter.setValue(allCategories);
+                } else {
+                    for (Category cat : categories) {
+                        if (cat.getId().equals(currentSelection.getId())) {
+                            categoryFilter.setValue(cat);
+                            break;
+                        }
                     }
                 }
             }
@@ -451,7 +473,7 @@ public class BookListView {
     private void filterByCategory(Category category) {
         try {
             List<Book> books;
-            if (category != null) {
+            if (category != null && category.getId() != null) {
                 books = bookService.getBooksByCategory(category.getId());
             } else {
                 books = bookService.getAllBooks();
@@ -685,6 +707,79 @@ public class BookListView {
             bookTable.getColumns().add(targetIndex, column);
         } else if (!show && bookTable.getColumns().contains(column)) {
             bookTable.getColumns().remove(column);
+        }
+
+        // Save the column visibility state
+        saveColumnVisibilityState(column, show);
+    }
+
+    /**
+     * Get column name identifier for a column.
+     */
+    private String getColumnName(TableColumn<Book, ?> column) {
+        if (column == idCol) return "id";
+        if (column == titleCol) return "title";
+        if (column == authorsCol) return "authors";
+        if (column == isbnCol) return "isbn";
+        if (column == publisherCol) return "publisher";
+        if (column == yearCol) return "year";
+        if (column == categoryCol) return "category";
+        if (column == shelfCol) return "shelf";
+        if (column == tagsCol) return "tags";
+        if (column == formatCol) return "format";
+        if (column == readCol) return "read";
+        if (column == ratingCol) return "rating";
+        if (column == physicalLocationCol) return "physicalLocation";
+        if (column == borrowedStatusCol) return "borrowedStatus";
+        if (column == borrowedToCol) return "borrowedTo";
+        return "unknown";
+    }
+
+    /**
+     * Save column visibility state to configuration.
+     */
+    private void saveColumnVisibilityState(TableColumn<Book, ?> column, boolean visible) {
+        String columnName = getColumnName(column);
+        configService.saveColumnVisibility(columnName, visible);
+        logger.debug("Saved column visibility: {} = {}", columnName, visible);
+    }
+
+    /**
+     * Load column visibility state from configuration.
+     */
+    private void loadColumnVisibilityState() {
+        // Define default visibility for each column
+        applyColumnVisibility(idCol, "id", true);
+        applyColumnVisibility(titleCol, "title", true);
+        applyColumnVisibility(authorsCol, "authors", true);
+        applyColumnVisibility(isbnCol, "isbn", true);
+        applyColumnVisibility(publisherCol, "publisher", false);
+        applyColumnVisibility(yearCol, "year", true);
+        applyColumnVisibility(categoryCol, "category", true);
+        applyColumnVisibility(shelfCol, "shelf", true);
+        applyColumnVisibility(tagsCol, "tags", false);
+        applyColumnVisibility(formatCol, "format", false);
+        applyColumnVisibility(readCol, "read", true);
+        applyColumnVisibility(ratingCol, "rating", true);
+        applyColumnVisibility(physicalLocationCol, "physicalLocation", true);
+        applyColumnVisibility(borrowedStatusCol, "borrowedStatus", true);
+        applyColumnVisibility(borrowedToCol, "borrowedTo", true);
+
+        logger.info("Loaded column visibility state from configuration");
+    }
+
+    /**
+     * Apply saved visibility state to a column without triggering save.
+     */
+    private void applyColumnVisibility(TableColumn<Book, ?> column, String columnName, boolean defaultVisible) {
+        boolean shouldBeVisible = configService.isColumnVisible(columnName, defaultVisible);
+        boolean isCurrentlyVisible = bookTable.getColumns().contains(column);
+
+        if (shouldBeVisible != isCurrentlyVisible) {
+            if (!shouldBeVisible) {
+                bookTable.getColumns().remove(column);
+            }
+            // If shouldBeVisible is true, the column is already added in createTableView
         }
     }
 

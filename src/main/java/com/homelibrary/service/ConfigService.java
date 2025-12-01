@@ -144,4 +144,23 @@ public class ConfigService {
     public String getAmazonRegion() {
         return getProperty("amazon.api.region", "us-east-1");
     }
+
+    /**
+     * Save column visibility state.
+     */
+    public void saveColumnVisibility(String columnName, boolean visible) {
+        setProperty("column.visible." + columnName, String.valueOf(visible));
+        saveConfiguration();
+    }
+
+    /**
+     * Get column visibility state.
+     */
+    public boolean isColumnVisible(String columnName, boolean defaultValue) {
+        String value = getProperty("column.visible." + columnName);
+        if (value == null) {
+            return defaultValue;
+        }
+        return Boolean.parseBoolean(value);
+    }
 }
