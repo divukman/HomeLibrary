@@ -20,12 +20,18 @@ REM Set the path to the JAR file
 set JAR=home-library-1.0.0.jar
 set LIB_DIR=lib
 
-REM Check if JAR exists
+REM Check if JAR exists in current directory, if not check target directory
 if not exist "%JAR%" (
-    echo JAR file not found: %JAR%
-    echo Please ensure you have extracted the distribution package.
-    pause
-    exit /b 1
+    if exist "target\%JAR%" (
+        set JAR=target\%JAR%
+        set LIB_DIR=target\lib
+        echo Found JAR in target directory
+    ) else (
+        echo JAR file not found: %JAR%
+        echo Please ensure you have extracted the distribution package or run 'mvn clean package'.
+        pause
+        exit /b 1
+    )
 )
 
 REM Check if lib directory exists
