@@ -113,6 +113,13 @@ public class BookService {
     }
 
     /**
+     * Find books by borrowed status.
+     */
+    public List<Book> getBooksByBorrowedStatus(boolean isBorrowed) throws SQLException {
+        return bookDao.findByBorrowedStatus(isBorrowed);
+    }
+
+    /**
      * Delete a book.
      */
     public boolean deleteBook(Integer id) throws SQLException {
@@ -212,6 +219,7 @@ public class BookService {
         stats.totalBooks = bookDao.count();
         stats.readBooks = bookDao.findByReadStatus(true).size();
         stats.unreadBooks = bookDao.findByReadStatus(false).size();
+        stats.borrowedBooks = bookDao.findByBorrowedStatus(true).size();
         stats.totalAuthors = authorDao.findAll().size();
         stats.totalCategories = categoryDao.findAll().size();
         return stats;
@@ -224,13 +232,14 @@ public class BookService {
         public int totalBooks;
         public int readBooks;
         public int unreadBooks;
+        public int borrowedBooks;
         public int totalAuthors;
         public int totalCategories;
 
         @Override
         public String toString() {
-            return String.format("Total: %d books, Read: %d, Unread: %d, Authors: %d, Categories: %d",
-                    totalBooks, readBooks, unreadBooks, totalAuthors, totalCategories);
+            return String.format("Total: %d books, Read: %d, Unread: %d, Borrowed: %d, Authors: %d, Categories: %d",
+                    totalBooks, readBooks, unreadBooks, borrowedBooks, totalAuthors, totalCategories);
         }
     }
 }

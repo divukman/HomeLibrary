@@ -1,6 +1,7 @@
 package com.homelibrary.ui;
 
 import com.homelibrary.model.Book;
+import com.homelibrary.model.Category;
 import com.homelibrary.service.BookService;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -34,6 +35,7 @@ public class BookListView {
     private final ObservableList<Book> bookData;
     private final ImageView coverImageView;
     private final Label statsLabel;
+    private ComboBox<Category> categoryFilter;
 
     // Table columns for visibility control
     private TableColumn<Book, Integer> idCol;
@@ -48,6 +50,9 @@ public class BookListView {
     private TableColumn<Book, String> formatCol;
     private TableColumn<Book, String> readCol;
     private TableColumn<Book, Integer> ratingCol;
+    private TableColumn<Book, String> physicalLocationCol;
+    private TableColumn<Book, String> borrowedStatusCol;
+    private TableColumn<Book, String> borrowedToCol;
 
     public BookListView(MainApp mainApp) {
         this.mainApp = mainApp;
@@ -97,7 +102,7 @@ public class BookListView {
 
         // Search field
         TextField searchField = new TextField();
-        searchField.setPromptText("Search by title, author, ISBN, category, tags, publisher...");
+        searchField.setPromptText("Search by title, author, ISBN, category, location, borrower...");
         searchField.setPrefWidth(350);
         searchField.textProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue == null || newValue.trim().isEmpty()) {
@@ -123,6 +128,15 @@ public class BookListView {
         Button columnsButton = new Button("Columns");
         columnsButton.setOnAction(e -> showColumnCustomization());
 
+        // Filter by category
+        categoryFilter = new ComboBox<>();
+        categoryFilter.setPromptText("All Categories");
+        loadCategoryFilter(categoryFilter);
+        categoryFilter.setOnAction(e -> {
+            Category selected = categoryFilter.getValue();
+            filterByCategory(selected);
+        });
+
         // Filter by read status
         ComboBox<String> readStatusFilter = new ComboBox<>();
         readStatusFilter.getItems().addAll("All Books", "Read", "Unread");
@@ -130,6 +144,15 @@ public class BookListView {
         readStatusFilter.setOnAction(e -> {
             String selected = readStatusFilter.getValue();
             filterByReadStatus(selected);
+        });
+
+        // Filter by borrowed status
+        ComboBox<String> borrowedStatusFilter = new ComboBox<>();
+        borrowedStatusFilter.getItems().addAll("All", "Borrowed", "Available");
+        borrowedStatusFilter.setValue("All");
+        borrowedStatusFilter.setOnAction(e -> {
+            String selected = borrowedStatusFilter.getValue();
+            filterByBorrowedStatus(selected);
         });
 
         topBar.getChildren().addAll(
@@ -141,8 +164,12 @@ public class BookListView {
             refreshButton,
             columnsButton,
             new Separator(),
-            new Label("Filter:"),
-            readStatusFilter
+            new Label("Category:"),
+            categoryFilter,
+            new Label("Read:"),
+            readStatusFilter,
+            new Label("Status:"),
+            borrowedStatusFilter
         );
 
         return topBar;
@@ -229,9 +256,26 @@ public class BookListView {
         formatCol.setCellValueFactory(new PropertyValueFactory<>("format"));
         formatCol.setPrefWidth(90);
 
+        // Physical Location column
+        physicalLocationCol = new TableColumn<>("Location");
+        physicalLocationCol.setCellValueFactory(new PropertyValueFactory<>("physicalLocation"));
+        physicalLocationCol.setPrefWidth(120);
+
+        // Borrowed Status column
+        borrowedStatusCol = new TableColumn<>("Borrowed");
+        borrowedStatusCol.setCellValueFactory(cellData ->
+            new SimpleStringProperty(cellData.getValue().isBorrowed() ? "Yes" : "No"));
+        borrowedStatusCol.setPrefWidth(80);
+
+        // Borrowed To column
+        borrowedToCol = new TableColumn<>("Borrowed To");
+        borrowedToCol.setCellValueFactory(new PropertyValueFactory<>("borrowedTo"));
+        borrowedToCol.setPrefWidth(150);
+
         bookTable.getColumns().addAll(
             idCol, titleCol, authorsCol, isbnCol, publisherCol,
-            yearCol, categoryCol, shelfCol, tagsCol, formatCol, readCol, ratingCol
+            yearCol, categoryCol, shelfCol, physicalLocationCol, borrowedStatusCol, borrowedToCol,
+            tagsCol, formatCol, readCol, ratingCol
         );
 
         // Selection listener to update cover preview
@@ -333,6 +377,68 @@ public class BookListView {
             bookData.setAll(books);
         } catch (SQLException e) {
             logger.error("Failed to filter books", e);
+            mainApp.showErrorAlert("Error", "Failed to filter books: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Filter books by borrowed status.
+     */
+    private void filterByBorrowedStatus(String status) {
+        try {
+            List<Book> books;
+            if ("Borrowed".equals(status)) {
+                books = bookService.getBooksByBorrowedStatus(true);
+            } else if ("Available".equals(status)) {
+                books = bookService.getBooksByBorrowedStatus(false);
+            } else {
+                books = bookService.getAllBooks();
+            }
+            bookData.setAll(books);
+        } catch (SQLException e) {
+            logger.error("Failed to filter books by borrowed status", e);
+            mainApp.showErrorAlert("Error", "Failed to filter books: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Load categories into the filter dropdown.
+     */
+    private void loadCategoryFilter(ComboBox<Category> categoryFilter) {
+        try {
+            Category currentSelection = categoryFilter.getValue();
+            List<Category> categories = bookService.getAllCategories();
+            categoryFilter.getItems().clear();
+            categoryFilter.getItems().addAll(categories);
+
+            // Restore selection if it still exists
+            if (currentSelection != null) {
+                for (Category cat : categories) {
+                    if (cat.getId().equals(currentSelection.getId())) {
+                        categoryFilter.setValue(cat);
+                        break;
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Failed to load categories for filter", e);
+        }
+    }
+
+    /**
+     * Filter books by category.
+     */
+    private void filterByCategory(Category category) {
+        try {
+            List<Book> books;
+            if (category != null) {
+                books = bookService.getBooksByCategory(category.getId());
+            } else {
+                books = bookService.getAllBooks();
+            }
+            bookData.setAll(books);
+        } catch (SQLException e) {
+            logger.error("Failed to filter books by category", e);
             mainApp.showErrorAlert("Error", "Failed to filter books: " + e.getMessage());
         }
     }
@@ -445,6 +551,7 @@ public class BookListView {
     public void refreshBooks() {
         loadBooks();
         updateStats();
+        loadCategoryFilter(categoryFilter);
     }
 
     /**
@@ -507,10 +614,22 @@ public class BookListView {
         ratingCheck.setSelected(bookTable.getColumns().contains(ratingCol));
         ratingCheck.selectedProperty().addListener((obs, old, selected) -> toggleColumn(ratingCol, selected));
 
+        CheckBox physicalLocationCheck = new CheckBox("Physical Location");
+        physicalLocationCheck.setSelected(bookTable.getColumns().contains(physicalLocationCol));
+        physicalLocationCheck.selectedProperty().addListener((obs, old, selected) -> toggleColumn(physicalLocationCol, selected));
+
+        CheckBox borrowedStatusCheck = new CheckBox("Borrowed Status");
+        borrowedStatusCheck.setSelected(bookTable.getColumns().contains(borrowedStatusCol));
+        borrowedStatusCheck.selectedProperty().addListener((obs, old, selected) -> toggleColumn(borrowedStatusCol, selected));
+
+        CheckBox borrowedToCheck = new CheckBox("Borrowed To");
+        borrowedToCheck.setSelected(bookTable.getColumns().contains(borrowedToCol));
+        borrowedToCheck.selectedProperty().addListener((obs, old, selected) -> toggleColumn(borrowedToCol, selected));
+
         content.getChildren().addAll(
             idCheck, titleCheck, authorsCheck, isbnCheck, publisherCheck,
-            yearCheck, categoryCheck, shelfCheck, tagsCheck, formatCheck,
-            readCheck, ratingCheck
+            yearCheck, categoryCheck, shelfCheck, physicalLocationCheck, tagsCheck, formatCheck,
+            readCheck, ratingCheck, borrowedStatusCheck, borrowedToCheck
         );
 
         dialog.getDialogPane().setContent(content);
@@ -526,7 +645,8 @@ public class BookListView {
             // Add column in the correct position based on the defined order
             List<TableColumn<Book, ?>> allColumns = List.of(
                 idCol, titleCol, authorsCol, isbnCol, publisherCol,
-                yearCol, categoryCol, shelfCol, tagsCol, formatCol, readCol, ratingCol
+                yearCol, categoryCol, shelfCol, physicalLocationCol, borrowedStatusCol, borrowedToCol,
+                tagsCol, formatCol, readCol, ratingCol
             );
 
             int targetIndex = 0;

@@ -44,9 +44,12 @@ if [ ! -d "$LIB_DIR" ]; then
     exit 1
 fi
 
-# Build module path for JavaFX
-MODULE_PATH="$LIB_DIR/javafx-controls-21.0.1.jar:$LIB_DIR/javafx-graphics-21.0.1.jar:$LIB_DIR/javafx-base-21.0.1.jar:$LIB_DIR/javafx-fxml-21.0.1.jar"
+# Build classpath with all dependencies
+CLASSPATH="$JAR_FILE"
+for jar in "$LIB_DIR"/*.jar; do
+    CLASSPATH="$CLASSPATH:$jar"
+done
 
 # Run the application
 echo "Starting Home Library Application..."
-java --module-path "$MODULE_PATH" --add-modules javafx.controls,javafx.fxml -jar "$JAR_FILE"
+java -cp "$CLASSPATH" com.homelibrary.Launcher

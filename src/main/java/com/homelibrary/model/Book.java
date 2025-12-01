@@ -28,11 +28,16 @@ public class Book {
     private String coverImagePath;
     private String amazonAsin;
     private List<Author> authors;
+    private String physicalLocation;
+    private boolean isBorrowed;
+    private String borrowedTo;
+    private LocalDateTime borrowedDate;
 
     public Book() {
         this.authors = new ArrayList<>();
         this.dateAdded = LocalDateTime.now();
         this.isRead = false;
+        this.isBorrowed = false;
     }
 
     public Integer getId() {
@@ -192,6 +197,38 @@ public class Book {
             this.authors = new ArrayList<>();
         }
         this.authors.add(author);
+    }
+
+    public String getPhysicalLocation() {
+        return physicalLocation;
+    }
+
+    public void setPhysicalLocation(String physicalLocation) {
+        this.physicalLocation = physicalLocation;
+    }
+
+    public boolean isBorrowed() {
+        return isBorrowed;
+    }
+
+    public void setBorrowed(boolean borrowed) {
+        isBorrowed = borrowed;
+    }
+
+    public String getBorrowedTo() {
+        return borrowedTo;
+    }
+
+    public void setBorrowedTo(String borrowedTo) {
+        this.borrowedTo = borrowedTo;
+    }
+
+    public LocalDateTime getBorrowedDate() {
+        return borrowedDate;
+    }
+
+    public void setBorrowedDate(LocalDateTime borrowedDate) {
+        this.borrowedDate = borrowedDate;
     }
 
     /**

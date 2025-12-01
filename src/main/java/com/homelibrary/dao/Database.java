@@ -116,6 +116,10 @@ public class Database {
                 rating INTEGER,
                 coverImagePath TEXT,
                 amazonAsin TEXT,
+                physicalLocation TEXT,
+                isBorrowed INTEGER DEFAULT 0,
+                borrowedTo TEXT,
+                borrowedDate TEXT,
                 FOREIGN KEY(categoryId) REFERENCES category(id)
             )
             """,
@@ -150,9 +154,46 @@ public class Database {
             }
 
             logger.info("Database schema initialized successfully");
+
+            // Run migrations for existing databases
+            runMigrations();
         } catch (SQLException e) {
             logger.error("Failed to initialize database schema", e);
             throw new RuntimeException("Schema initialization failed", e);
+        }
+    }
+
+    /**
+     * Run database migrations to add new columns to existing databases.
+     */
+    private void runMigrations() {
+        logger.info("Running database migrations");
+
+        try (Statement stmt = getConnection().createStatement()) {
+            // Migration: Add physicalLocation, isBorrowed, borrowedTo, borrowedDate columns
+            String[] migrations = {
+                "ALTER TABLE book ADD COLUMN physicalLocation TEXT",
+                "ALTER TABLE book ADD COLUMN isBorrowed INTEGER DEFAULT 0",
+                "ALTER TABLE book ADD COLUMN borrowedTo TEXT",
+                "ALTER TABLE book ADD COLUMN borrowedDate TEXT"
+            };
+
+            for (String migration : migrations) {
+                try {
+                    stmt.execute(migration);
+                    logger.info("Migration executed: {}", migration);
+                } catch (SQLException e) {
+                    // Column already exists, ignore
+                    if (!e.getMessage().contains("duplicate column name")) {
+                        throw e;
+                    }
+                }
+            }
+
+            logger.info("Database migrations completed successfully");
+        } catch (SQLException e) {
+            logger.error("Failed to run migrations", e);
+            throw new RuntimeException("Migration failed", e);
         }
     }
 

@@ -66,8 +66,9 @@ public class BookDao {
         String sql = """
             INSERT INTO book (title, subtitle, isbn10, isbn13, publisher, yearPublished,
                              categoryId, shelfLocation, tags, format, language, notes,
-                             dateAdded, isRead, rating, coverImagePath, amazonAsin)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             dateAdded, isRead, rating, coverImagePath, amazonAsin,
+                             physicalLocation, isBorrowed, borrowedTo, borrowedDate)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
         try (PreparedStatement pstmt = database.getConnection().prepareStatement(sql)) {
@@ -94,13 +95,14 @@ public class BookDao {
             UPDATE book SET title = ?, subtitle = ?, isbn10 = ?, isbn13 = ?, publisher = ?,
                            yearPublished = ?, categoryId = ?, shelfLocation = ?, tags = ?,
                            format = ?, language = ?, notes = ?, dateAdded = ?, isRead = ?,
-                           rating = ?, coverImagePath = ?, amazonAsin = ?
+                           rating = ?, coverImagePath = ?, amazonAsin = ?,
+                           physicalLocation = ?, isBorrowed = ?, borrowedTo = ?, borrowedDate = ?
             WHERE id = ?
             """;
 
         try (PreparedStatement pstmt = database.getConnection().prepareStatement(sql)) {
             setPreparedStatementParameters(pstmt, book);
-            pstmt.setInt(18, book.getId());
+            pstmt.setInt(22, book.getId());
             pstmt.executeUpdate();
         }
 
@@ -128,6 +130,10 @@ public class BookDao {
         pstmt.setObject(15, book.getRating());
         pstmt.setString(16, book.getCoverImagePath());
         pstmt.setString(17, book.getAmazonAsin());
+        pstmt.setString(18, book.getPhysicalLocation());
+        pstmt.setInt(19, book.isBorrowed() ? 1 : 0);
+        pstmt.setString(20, book.getBorrowedTo());
+        pstmt.setString(21, book.getBorrowedDate() != null ? book.getBorrowedDate().format(DATE_FORMATTER) : null);
     }
 
     /**
@@ -217,7 +223,7 @@ public class BookDao {
     }
 
     /**
-     * Search books by title, author, ISBN, category, or tags.
+     * Search books by title, author, ISBN, category, tags, physical location, or borrower.
      */
     public List<Book> search(String query) throws SQLException {
         List<Book> books = new ArrayList<>();
@@ -233,6 +239,8 @@ public class BookDao {
                OR c.name LIKE ?
                OR b.tags LIKE ?
                OR b.publisher LIKE ?
+               OR b.physicalLocation LIKE ?
+               OR b.borrowedTo LIKE ?
             ORDER BY b.title
             """;
 
@@ -247,6 +255,8 @@ public class BookDao {
             pstmt.setString(6, searchPattern);
             pstmt.setString(7, searchPattern);
             pstmt.setString(8, searchPattern);
+            pstmt.setString(9, searchPattern);
+            pstmt.setString(10, searchPattern);
 
             ResultSet rs = pstmt.executeQuery();
 
@@ -381,6 +391,16 @@ public class BookDao {
         book.setCoverImagePath(rs.getString("coverImagePath"));
         book.setAmazonAsin(rs.getString("amazonAsin"));
 
+        // Map new fields
+        book.setPhysicalLocation(rs.getString("physicalLocation"));
+        book.setBorrowed(rs.getInt("isBorrowed") == 1);
+        book.setBorrowedTo(rs.getString("borrowedTo"));
+
+        String borrowedDateStr = rs.getString("borrowedDate");
+        if (borrowedDateStr != null) {
+            book.setBorrowedDate(LocalDateTime.parse(borrowedDateStr, DATE_FORMATTER));
+        }
+
         // Map category if present
         Integer catId = rs.getInt("cat_id");
         if (!rs.wasNull()) {
@@ -403,5 +423,32 @@ public class BookDao {
             }
         }
         return 0;
+    }
+
+    /**
+     * Find books by borrowed status.
+     */
+    public List<Book> findByBorrowedStatus(boolean isBorrowed) throws SQLException {
+        List<Book> books = new ArrayList<>();
+        String sql = """
+            SELECT b.*, c.id as cat_id, c.name as cat_name
+            FROM book b
+            LEFT JOIN category c ON b.categoryId = c.id
+            WHERE b.isBorrowed = ?
+            ORDER BY b.borrowedDate DESC
+            """;
+
+        try (PreparedStatement pstmt = database.getConnection().prepareStatement(sql)) {
+            pstmt.setInt(1, isBorrowed ? 1 : 0);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                Book book = mapResultSetToBook(rs);
+                book.setAuthors(authorDao.findByBookId(book.getId()));
+                books.add(book);
+            }
+        }
+
+        return books;
     }
 }

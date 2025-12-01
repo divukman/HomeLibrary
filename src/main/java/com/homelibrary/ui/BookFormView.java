@@ -56,6 +56,10 @@ public class BookFormView extends Dialog<Book> {
     private Spinner<Integer> ratingSpinner;
     private ImageView coverImageView;
     private String coverImagePath;
+    private TextField physicalLocationField;
+    private CheckBox isBorrowedCheck;
+    private TextField borrowedToField;
+    private DatePicker borrowedDatePicker;
 
     public BookFormView(MainApp mainApp, Book book) {
         this.mainApp = mainApp;
@@ -224,6 +228,45 @@ public class BookFormView extends Dialog<Book> {
         grid.add(notesArea, 1, row);
         row++;
 
+        // Physical Location
+        grid.add(new Label("Physical Location:"), 0, row);
+        physicalLocationField = new TextField();
+        physicalLocationField.setPromptText("e.g., Home, Public Library, Friend's Library");
+        grid.add(physicalLocationField, 1, row);
+        row++;
+
+        // Borrowed status
+        grid.add(new Label("Borrowed:"), 0, row);
+        isBorrowedCheck = new CheckBox("This book is currently borrowed");
+        grid.add(isBorrowedCheck, 1, row);
+        row++;
+
+        // Borrowed to
+        grid.add(new Label("Borrowed To:"), 0, row);
+        borrowedToField = new TextField();
+        borrowedToField.setPromptText("Name of person who borrowed the book");
+        borrowedToField.setDisable(true);
+        grid.add(borrowedToField, 1, row);
+        row++;
+
+        // Borrowed date
+        grid.add(new Label("Borrowed Date:"), 0, row);
+        borrowedDatePicker = new DatePicker();
+        borrowedDatePicker.setPromptText("Select date when borrowed");
+        borrowedDatePicker.setDisable(true);
+        grid.add(borrowedDatePicker, 1, row);
+        row++;
+
+        // Enable/disable borrowed fields based on checkbox
+        isBorrowedCheck.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            borrowedToField.setDisable(!newVal);
+            borrowedDatePicker.setDisable(!newVal);
+            if (!newVal) {
+                borrowedToField.clear();
+                borrowedDatePicker.setValue(null);
+            }
+        });
+
         // Cover image section
         VBox coverSection = createCoverSection();
         grid.add(new Label("Cover:"), 0, row);
@@ -326,6 +369,15 @@ public class BookFormView extends Dialog<Book> {
         if (book.getCoverImagePath() != null) {
             coverImagePath = book.getCoverImagePath();
             loadCoverImage(coverImagePath);
+        }
+
+        // Physical location and borrowing
+        physicalLocationField.setText(book.getPhysicalLocation());
+        isBorrowedCheck.setSelected(book.isBorrowed());
+        borrowedToField.setText(book.getBorrowedTo());
+
+        if (book.getBorrowedDate() != null) {
+            borrowedDatePicker.setValue(book.getBorrowedDate().toLocalDate());
         }
     }
 
@@ -467,6 +519,17 @@ public class BookFormView extends Dialog<Book> {
             book.setNotes(notesArea.getText().trim());
             book.setRead(isReadCheck.isSelected());
             book.setRating(ratingSpinner.getValue() > 0 ? ratingSpinner.getValue() : null);
+
+            // Physical location and borrowing
+            book.setPhysicalLocation(physicalLocationField.getText() != null ? physicalLocationField.getText().trim() : "");
+            book.setBorrowed(isBorrowedCheck.isSelected());
+            book.setBorrowedTo(borrowedToField.getText() != null ? borrowedToField.getText().trim() : "");
+
+            if (borrowedDatePicker.getValue() != null) {
+                book.setBorrowedDate(borrowedDatePicker.getValue().atStartOfDay());
+            } else {
+                book.setBorrowedDate(null);
+            }
 
             // Save book to get ID
             Book savedBook = bookService.saveBook(book);

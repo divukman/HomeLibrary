@@ -45,6 +45,19 @@
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp</artifactId>
             <version>4.12.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.squareup.okio</groupId>
+                    <artifactId>okio</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Explicitly include okio-jvm (correct JVM artifact) -->
+        <dependency>
+            <groupId>com.squareup.okio</groupId>
+            <artifactId>okio-jvm</artifactId>
+            <version>3.6.0</version>
         </dependency>
 
         <!-- JSON processing -->
@@ -92,7 +105,7 @@
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.8</version>
                 <configuration>
-                    <mainClass>com.homelibrary.ui.MainApp</mainClass>
+                    <mainClass>com.homelibrary.Launcher</mainClass>
                 </configuration>
             </plugin>
 
@@ -103,7 +116,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>com.homelibrary.ui.MainApp</mainClass>
+                            <mainClass>com.homelibrary.Launcher</mainClass>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
                         </manifest>
