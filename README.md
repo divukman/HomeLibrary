@@ -2,6 +2,9 @@
 
 A comprehensive JavaFX desktop application for managing your personal book collection with SQLite storage and optional Amazon API integration.
 
+<img width="2159" height="1098" alt="image" src="https://github.com/user-attachments/assets/9bf44d85-41e0-4737-801e-5b796294f6df" />
+
+
 ## Features
 
 - **Complete Book Management**: Track title, subtitle, authors, ISBN, publisher, year, category, shelf location, and more
