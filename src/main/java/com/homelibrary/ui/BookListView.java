@@ -3,6 +3,7 @@ package com.homelibrary.ui;
 import com.homelibrary.model.Book;
 import com.homelibrary.model.Category;
 import com.homelibrary.service.BookService;
+import com.homelibrary.service.ExportImportService;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -13,6 +14,7 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,7 +76,7 @@ public class BookListView {
         BorderPane borderPane = new BorderPane();
 
         // Top: Search and filter controls
-        HBox topBar = createTopBar();
+        VBox topBar = createTopBar();
         borderPane.setTop(topBar);
 
         // Center: Book table
@@ -95,10 +97,9 @@ public class BookListView {
     /**
      * Create top toolbar with search and buttons.
      */
-    private HBox createTopBar() {
-        HBox topBar = new HBox(10);
+    private VBox createTopBar() {
+        VBox topBar = new VBox(10);
         topBar.setPadding(new Insets(10));
-        topBar.setAlignment(Pos.CENTER_LEFT);
 
         // Search field
         TextField searchField = new TextField();
@@ -128,6 +129,12 @@ public class BookListView {
         Button columnsButton = new Button("Columns");
         columnsButton.setOnAction(e -> showColumnCustomization());
 
+        Button exportButton = new Button("Export");
+        exportButton.setOnAction(e -> handleExport());
+
+        Button importButton = new Button("Import");
+        importButton.setOnAction(e -> handleImport());
+
         // Filter by category
         categoryFilter = new ComboBox<>();
         categoryFilter.setPromptText("All Categories");
@@ -155,7 +162,10 @@ public class BookListView {
             filterByBorrowedStatus(selected);
         });
 
-        topBar.getChildren().addAll(
+        // First row: Search and action buttons
+        HBox firstRow = new HBox(10);
+        firstRow.setAlignment(Pos.CENTER_LEFT);
+        firstRow.getChildren().addAll(
             searchField,
             new Separator(),
             addButton,
@@ -164,6 +174,14 @@ public class BookListView {
             refreshButton,
             columnsButton,
             new Separator(),
+            exportButton,
+            importButton
+        );
+
+        // Second row: Filter controls
+        HBox secondRow = new HBox(10);
+        secondRow.setAlignment(Pos.CENTER_LEFT);
+        secondRow.getChildren().addAll(
             new Label("Category:"),
             categoryFilter,
             new Label("Read:"),
@@ -171,6 +189,8 @@ public class BookListView {
             new Label("Status:"),
             borrowedStatusFilter
         );
+
+        topBar.getChildren().addAll(firstRow, secondRow);
 
         return topBar;
     }
@@ -665,6 +685,133 @@ public class BookListView {
             bookTable.getColumns().add(targetIndex, column);
         } else if (!show && bookTable.getColumns().contains(column)) {
             bookTable.getColumns().remove(column);
+        }
+    }
+
+    /**
+     * Handle export to file.
+     */
+    private void handleExport() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Export Library (ZIP with Images)");
+        fileChooser.setInitialFileName("library_export.zip");
+        fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter("ZIP Files (with images)", "*.zip"),
+            new FileChooser.ExtensionFilter("JSON Files (no images)", "*.json")
+        );
+
+        File file = fileChooser.showSaveDialog(mainApp.getPrimaryStage());
+        if (file != null) {
+            try {
+                ExportImportService exportService = new ExportImportService(bookService);
+                exportService.exportToJson(file);
+
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Export Successful");
+                alert.setHeaderText(null);
+                alert.setContentText("Library exported successfully to:\n" + file.getAbsolutePath() +
+                    "\n\nNote: Images are included in the export.");
+                alert.showAndWait();
+
+                logger.info("Exported library to: {}", file.getAbsolutePath());
+            } catch (Exception ex) {
+                logger.error("Failed to export library", ex);
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Export Failed");
+                alert.setHeaderText("Failed to export library");
+                alert.setContentText(ex.getMessage());
+                alert.showAndWait();
+            }
+        }
+    }
+
+    /**
+     * Handle import from file.
+     */
+    private void handleImport() {
+        // Confirmation dialog
+        Alert confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmDialog.setTitle("Import Library");
+        confirmDialog.setHeaderText("Import books from file");
+        confirmDialog.setContentText("This will add books from the file to your library.\nDuplicates will be automatically skipped.\n\nDo you want to continue?");
+
+        Optional<ButtonType> result = confirmDialog.showAndWait();
+        if (result.isEmpty() || result.get() != ButtonType.OK) {
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Import Library");
+        fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter("All Supported", "*.json", "*.zip"),
+            new FileChooser.ExtensionFilter("ZIP Files (with images)", "*.zip"),
+            new FileChooser.ExtensionFilter("JSON Files", "*.json")
+        );
+
+        File file = fileChooser.showOpenDialog(mainApp.getPrimaryStage());
+        if (file != null) {
+            try {
+                ExportImportService importService = new ExportImportService(bookService);
+                ExportImportService.ImportResult importResult = importService.importFromJson(file);
+
+                // Show results
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Import Completed");
+                alert.setHeaderText(null);
+
+                StringBuilder message = new StringBuilder();
+                message.append(String.format("Successfully imported: %d books\n", importResult.getSuccessCount()));
+
+                if (importResult.hasSkipped()) {
+                    message.append(String.format("Skipped duplicates: %d books\n", importResult.getSkipCount()));
+                }
+
+                if (importResult.hasErrors()) {
+                    message.append(String.format("Failed: %d books\n", importResult.getErrorCount()));
+                }
+
+                // Show details if there are skipped or errors
+                if (importResult.hasSkipped() || importResult.hasErrors()) {
+                    message.append("\nDetails:\n");
+
+                    if (importResult.hasSkipped()) {
+                        message.append("\nSkipped:\n");
+                        int showCount = Math.min(5, importResult.getSkipped().size());
+                        for (int i = 0; i < showCount; i++) {
+                            message.append("- ").append(importResult.getSkipped().get(i)).append("\n");
+                        }
+                        if (importResult.getSkipped().size() > 5) {
+                            message.append(String.format("... and %d more\n", importResult.getSkipped().size() - 5));
+                        }
+                    }
+
+                    if (importResult.hasErrors()) {
+                        message.append("\nErrors:\n");
+                        int showCount = Math.min(5, importResult.getErrors().size());
+                        for (int i = 0; i < showCount; i++) {
+                            message.append("- ").append(importResult.getErrors().get(i)).append("\n");
+                        }
+                        if (importResult.getErrors().size() > 5) {
+                            message.append(String.format("... and %d more\n", importResult.getErrors().size() - 5));
+                        }
+                    }
+                }
+
+                alert.setContentText(message.toString());
+                alert.showAndWait();
+
+                // Refresh the book list
+                refreshBooks();
+
+                logger.info("Imported library from: {}", file.getAbsolutePath());
+            } catch (Exception ex) {
+                logger.error("Failed to import library", ex);
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Import Failed");
+                alert.setHeaderText("Failed to import library");
+                alert.setContentText(ex.getMessage());
+                alert.showAndWait();
+            }
         }
     }
 

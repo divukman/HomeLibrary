@@ -302,14 +302,20 @@ public class BookFormView extends Dialog<Book> {
 
         Button uploadButton = new Button("Upload Image");
         uploadButton.setOnAction(e -> handleUploadCover());
+        uploadButton.setMaxWidth(Double.MAX_VALUE);
 
         Button searchIsbnButton = new Button("Search by ISBN");
         searchIsbnButton.setOnAction(e -> handleSearchByIsbn());
+        searchIsbnButton.setMaxWidth(Double.MAX_VALUE);
 
         Button searchTitleButton = new Button("Search by Title");
         searchTitleButton.setOnAction(e -> handleSearchByTitle());
+        searchTitleButton.setMaxWidth(Double.MAX_VALUE);
 
         HBox buttonBox = new HBox(5, uploadButton, searchIsbnButton, searchTitleButton);
+        HBox.setHgrow(uploadButton, Priority.ALWAYS);
+        HBox.setHgrow(searchIsbnButton, Priority.ALWAYS);
+        HBox.setHgrow(searchTitleButton, Priority.ALWAYS);
 
         coverBox.getChildren().addAll(coverImageView, buttonBox);
 
